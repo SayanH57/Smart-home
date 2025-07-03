@@ -107,7 +107,7 @@ Responsive PWA version for mobile control
 
 󰳕 Author
 
-Sayan Halder
+Sayan 
 
 Email: ssroyal888@gmail.com GitHub: @SayanH57
 
