@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Home EcoMonitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'eco-green': '#10B981',
+                        'eco-blue': '#3B82F6',
+                        'eco-orange': '#F59E0B',
+                        'eco-red': '#EF4444'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <h1 class="text-2xl font-bold text-eco-green">🏠 EcoMonitor</h1>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="dataToggle" class="bg-eco-blue text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        📊 Real Data
+                    </button>
+                    <span class="text-gray-700">Welcome, {{ session.username }}!</span>
+                    <a href="/logout" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Dashboard -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Status Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Temperature Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-eco-orange">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Temperature</p>
+                        <p id="temp-value" class="text-3xl font-bold text-eco-orange">--°C</p>
+                    </div>
+                    <div class="text-4xl">🌡️</div>
+                </div>
+                <div class="mt-4">
+                    <div id="temp-status" class="flex items-center text-sm">
+                        <span class="flex w-3 h-3 bg-green-400 rounded-full mr-2"></span>
+                        <span class="text-gray-600">Normal range</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Humidity Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-eco-blue">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Humidity</p>
+                        <p id="humidity-value" class="text-3xl font-bold text-eco-blue">--%</p>
+                    </div>
+                    <div class="text-4xl">💧</div>
+                </div>
+                <div class="mt-4">
+                    <div id="humidity-status" class="flex items-center text-sm">
+                        <span class="flex w-3 h-3 bg-green-400 rounded-full mr-2"></span>
+                        <span class="text-gray-600">Optimal level</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Air Quality Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-eco-green">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Air Quality</p>
+                        <p id="air-quality-value" class="text-3xl font-bold text-eco-green">--</p>
+                    </div>
+                    <div class="text-4xl">🌬️</div>
+                </div>
+                <div class="mt-4">
+                    <div id="air-quality-status" class="flex items-center text-sm">
+                        <span class="flex w-3 h-3 bg-green-400 rounded-full mr-2"></span>
+                        <span class="text-gray-600">Good quality</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Energy Usage Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-eco-red">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Energy Usage</p>
+                        <p id="energy-value" class="text-3xl font-bold text-eco-red">-- kWh</p>
+                    </div>
+                    <div class="text-4xl">⚡</div>
+                </div>
+                <div class="mt-4">
+                    <div id="energy-status" class="flex items-center text-sm">
+                        <span class="flex w-3 h-3 bg-yellow-400 rounded-full mr-2"></span>
+                        <span class="text-gray-600">Moderate usage</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts and Controls Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Real-time Charts -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Environmental Trends</h2>
+                    <div class="flex space-x-2">
+                        <button id="chart-24h" class="px-3 py-1 bg-eco-green text-white rounded-lg text-sm hover:bg-green-600 transition-colors">24H</button>
+                        <button id="chart-7d" class="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400 transition-colors">7D</button>
+                        <button id="chart-30d" class="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400 transition-colors">30D</button>
+                    </div>
+                </div>
+                <div class="h-80">
+                    <canvas id="environmentChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Device Controls -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">Device Controls</h2>
+                <div id="device-controls" class="space-y-4">
+                    <!-- Device controls will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Smart Suggestions and Water Usage -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Smart Suggestions -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    🧠 Smart Suggestions
+                    <span id="suggestion-badge" class="ml-2 bg-eco-green text-white text-xs px-2 py-1 rounded-full">0</span>
+                </h2>
+                <div id="suggestions-container" class="space-y-3 max-h-80 overflow-y-auto">
+                    <!-- Suggestions will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Water & Light Usage -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">Resource Usage</h2>
+                <div class="space-y-6">
+                    <!-- Water Usage -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-600">Water Usage</span>
+                            <span id="water-value" class="font-bold text-eco-blue">-- L</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div id="water-bar" class="bg-eco-blue h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Light Level -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-600">Light Level</span>
+                            <span id="light-value" class="font-bold text-eco-orange">-- lux</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div id="light-bar" class="bg-eco-orange h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Energy Efficiency Score -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-600">Efficiency Score</span>
+                            <span id="efficiency-score" class="font-bold text-eco-green">--/100</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div id="efficiency-bar" class="bg-eco-green h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 flex items-center space-x-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-eco-green"></div>
+            <span class="text-gray-700">Loading data...</span>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>
